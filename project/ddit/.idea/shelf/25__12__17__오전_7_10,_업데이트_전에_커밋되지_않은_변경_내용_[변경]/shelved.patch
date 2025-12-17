@@ -1,0 +1,2126 @@
+Index: ddit/src/main/java/kr/or/ddit/user/UserAuthController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.user;\r\n\r\nimport lombok.RequiredArgsConstructor;\r\nimport org.springframework.http.HttpStatus;\r\nimport org.springframework.http.ResponseEntity;\r\nimport org.springframework.web.bind.annotation.PostMapping;\r\nimport org.springframework.web.bind.annotation.RequestBody;\r\nimport org.springframework.web.bind.annotation.RequestMapping;\r\nimport org.springframework.web.bind.annotation.RestController;\r\n\r\n@RestController\r\n@RequestMapping(\"/api/auth\") // 기본 경로 설정\r\n@RequiredArgsConstructor\r\npublic class UserAuthController {\r\n    private final UserService userService;\r\n\r\n    // Post 요청: 회원가입 API\r\n    @PostMapping(\"/register\")\r\n    public ResponseEntity<?> register(@RequestBody UserRegisterRequest request) {\r\n        try {\r\n            User newUser = userService.registerUser(request);\r\n\r\n            // 성공 응답(DB에 저장된 사용자 이름 반환)\r\n            return new ResponseEntity<>(\"회원가입 성공: \" + newUser.getUsername(), HttpStatus.CREATED);\r\n        } catch (IllegalArgumentException e) {\r\n            // 사용자 이름 중복 등의 실패 응답\r\n            return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);\r\n        }\r\n    }\r\n    /* 로그인 API는 Spring Security가 처리하거나 별도의 로직이 필요\r\n    여기서는 Security 설정을 통해 기본 로그인 처리를 맡깁니다. */\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/user/UserAuthController.java b/ddit/src/main/java/kr/or/ddit/user/UserAuthController.java
+--- a/ddit/src/main/java/kr/or/ddit/user/UserAuthController.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/user/UserAuthController.java	(date 1765921674461)
+@@ -1,32 +1,57 @@
+ package kr.or.ddit.user;
+ 
++import jakarta.servlet.http.HttpServletRequest;
+ import lombok.RequiredArgsConstructor;
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.ResponseEntity;
+-import org.springframework.web.bind.annotation.PostMapping;
+-import org.springframework.web.bind.annotation.RequestBody;
+-import org.springframework.web.bind.annotation.RequestMapping;
+-import org.springframework.web.bind.annotation.RestController;
++import org.springframework.security.authentication.AuthenticationManager;
++import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.context.SecurityContextHolder;
++import org.springframework.web.bind.annotation.*;
++
++import java.util.Map;
+ 
+ @RestController
+ @RequestMapping("/api/auth") // 기본 경로 설정
+ @RequiredArgsConstructor
+ public class UserAuthController {
++
+     private final UserService userService;
++    private final AuthenticationManager authenticationManager;
+ 
+-    // Post 요청: 회원가입 API
++    // 1. 회원가입 API
+     @PostMapping("/register")
+     public ResponseEntity<?> register(@RequestBody UserRegisterRequest request) {
+-        try {
+-            User newUser = userService.registerUser(request);
+-
+-            // 성공 응답(DB에 저장된 사용자 이름 반환)
+-            return new ResponseEntity<>("회원가입 성공: " + newUser.getUsername(), HttpStatus.CREATED);
+-        } catch (IllegalArgumentException e) {
+-            // 사용자 이름 중복 등의 실패 응답
+-            return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
++        User newUser = userService.registerUser(request);
++        // 성공 응답(DB에 저장된 사용자 이름 반환)
++        return new ResponseEntity<>(Map.of(
++                "message", "회원가입 성공",
++                "username", newUser.getUsername()
++        ), HttpStatus.CREATED);
++    }
++
++    // 2. 로그인 API
++    @PostMapping("/login")
++    public ResponseEntity<?> login(@RequestBody UserLoginRequest request, HttpServletRequest httpRequest) {
++        try {
++            // Spring Security 인증 처리
++            Authentication authentication = authenticationManager.authenticate(
++                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
++            );
++
++            SecurityContextHolder.getContext().setAuthentication(authentication);
++
++            httpRequest.getSession(true);
++
++            return ResponseEntity.ok(Map.of(
++                    "message", "로그인 성공",
++                    "username", request.getUsername()
++            ));
++        } catch (Exception e) {
++            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
++                    "message", "아이디 또는 비밀번호가 올바르지 않습니다."
++            ));
+         }
+     }
+-    /* 로그인 API는 Spring Security가 처리하거나 별도의 로직이 필요
+-    여기서는 Security 설정을 통해 기본 로그인 처리를 맡깁니다. */
+ }
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/DditApplication.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit;\r\n\r\nimport org.springframework.boot.SpringApplication;\r\nimport org.springframework.boot.autoconfigure.SpringBootApplication;\r\n\r\n@SpringBootApplication\r\npublic class DditApplication {\r\n\r\n\tpublic static void main(String[] args) {\r\n\t\tSpringApplication.run(DditApplication.class, args);\r\n\t}\r\n\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/DditApplication.java b/ddit/src/main/java/kr/or/ddit/DditApplication.java
+--- a/ddit/src/main/java/kr/or/ddit/DditApplication.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/DditApplication.java	(date 1764704213927)
+@@ -10,4 +10,4 @@
+ 		SpringApplication.run(DditApplication.class, args);
+ 	}
+ 
+-}
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/config/SecurityConfig.java
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/config/SecurityConfig.java b/ddit/src/main/java/kr/or/ddit/config/SecurityConfig.java
+deleted file mode 100644
+--- a/ddit/src/main/java/kr/or/ddit/config/SecurityConfig.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ /dev/null	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
+@@ -1,36 +0,0 @@
+-package kr.or.ddit.config;
+-
+-import org.springframework.context.annotation.Bean;
+-import org.springframework.context.annotation.Configuration;
+-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+-import org.springframework.security.crypto.password.PasswordEncoder;
+-import org.springframework.security.web.SecurityFilterChain;
+-
+-@Configuration // 해당 클래스가 스프링 설정 파일임을 나타냄
+-@EnableWebSecurity // 스프링 시큐리티를 활성화함
+-public class SecurityConfig {
+-    // 1. 보안 필터 체인 설정
+-    @Bean
+-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
+-        http
+-                .csrf(csrf -> csrf.disable()) // CSRF 보호 비활성화
+-                .authorizeHttpRequests(authorize -> authorize
+-                        // 회원가입 API와 주식 데이터 조회는 인증 없이 접근 허용
+-                        .requestMatchers("/api/auth/register", "/api/stock/**").permitAll()
+-                        // 나머지 모든 요청은 반드시 인증(로그인)이 필요
+-                        .anyRequest().authenticated()
+-                )
+-                .formLogin(form -> form.disable()) // HTML 폼 기반 로그인은 일단 비활성화
+-                .httpBasic(httpBasic -> httpBasic.disable()); // HTTP 기본 인증 비활성화
+-        return http.build();
+-    }
+-
+-    // 2. 비밀번호 암호화 빈(Bean) 등록
+-    @Bean
+-    public PasswordEncoder passwordEncoder() {
+-        // 비밀번호를 안전하게 암호화/복호화 하는 인코더 (Spring Security의 표준)
+-        return new BCryptPasswordEncoder();
+-    }
+-}
+Index: ddit/src/main/resources/static/js/common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/resources/static/js/common.js b/ddit/src/main/resources/static/js/common.js
+new file mode 100644
+--- /dev/null	(date 1765919125451)
++++ b/ddit/src/main/resources/static/js/common.js	(date 1765919125451)
+@@ -0,0 +1,80 @@
++const TOKEN_KEY = "jwt_token";
++
++function getToken() {
++    return localStorage.getItem(TOKEN_KEY);
++}
++
++function setToken(token) {
++    localStorage.setItem(TOKEN_KEY, token);
++}
++
++function clearToken() {
++    localStorage.removeItem(TOKEN_KEY);
++}
++
++function showView(view) {
++    const login = document.getElementById("loginSection");
++    const reg = document.getElementById("registerSection");
++    const stock = document.getElementById("stockSection");
++
++    if (!login || !reg || !stock) return;
++
++    login.classList.add("hidden");
++    reg.classList.add("hidden");
++    stock.classList.add("hidden");
++
++    if (view == "login") login.classList.remove("hidden");
++    if (view == "register") reg.classList.remove("hidden");
++    if (view == "stock") stock.classList.remove("hidden");
++}
++
++function requireLoginOrRedirect() {
++    const t = getToken();
++    if (!t) {
++        showView("login");
++        return false;
++    }
++    return true;
++}
++
++// 공통 API 호출 함수
++async function callApi(method, url, bodyObj, needAuth, resultElementId, statusElementId)  {
++    const headers = { "Content-Type": "application/json" };
++    const token = getToken();
++
++    if (needAuth && token) {
++        headers["Authorization"] = "Bearer " + token;
++    }
++
++    const options = { method, headers, credentials: "include" };
++
++    if (bodyObj !== null && bodyObj !== undefined && method !== "GET") {
++        options.body = JSON.stringify(bodyObj);
++    }
++
++    const statusEl = statusElementId ? document.getElementById(statusElementId) : null;
++    const resultEl = resultElementId ? document.getElementById(resultElementId) : null;
++
++    if (statusEl) statusEl.textContent = "요청 중...";
++    if (resultEl) resultEl.textContent = "";
++
++    try {
++        const res = await fetch(url, options);
++        const text = await res.text();
++
++        if (statusEl) statusEl.textContent = "HTTP " + res.status + " " + res.statusText;
++
++        try {
++            const json = JSON.parse(text);
++            if (resultEl) resultEl.textContent = JSON.stringify(json, null, 2);
++            return { res, data: json};
++        } catch {
++            if (resultEl) resultEl.textContent = text;
++            return { res, data: text};
++        }
++    } catch (err) {
++        if (statusEl) statusEl.textContent = "요청 실패: " + err;
++        if (resultEl) resultEl.textContent = "";
++        return null;
++    }
++}
+\ No newline at end of file
+Index: ddit/src/main/resources/static/js/stock.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/resources/static/js/stock.js b/ddit/src/main/resources/static/js/stock.js
+new file mode 100644
+--- /dev/null	(date 1765909204024)
++++ b/ddit/src/main/resources/static/js/stock.js	(date 1765909204024)
+@@ -0,0 +1,78 @@
++document.addEventListener('DOMContentLoaded', () => {
++    // 로그인 하지 않으면 튕겨내기
++    if (!requireLoginOrRedirect()) return;
++
++    // 로그아웃
++    document.getElementById('logoutBtn')?.addEventListener('click', () => {
++        clearToken();
++        showView("login");
++    });
++
++    // 1. 시세 조회
++    document.getElementById('priceForm')?.addEventListener("submit", async (e) => {
++        e.preventDefault();
++
++        const ticker = document.getElementById("price-ticker").value;
++        const start = document.getElementById("price-start").value;
++        const end = document.getElementById("price-end").value;
++
++        const params = new URLSearchParams();
++        if (ticker) params.append("ticker", ticker);
++        if (start) params.append("start", start);
++        if (end) params.append("end", end);
++
++        await callApi("GET", "/api/price/history?" + params.toString(), null, true, "price-result", "price-status");
++    });
++
++    // 2. 네이버 시세 수집
++    document.getElementById("naverFetchForm")?.addEventListener("submit", async (e) => {
++        e.preventDefault();
++
++        const ticker = document.getElementById("naver-ticker").value;
++        const start = document.getElementById("naver-start").value;
++        const end = document.getElementById("naver-end").value;
++
++        await callApi("POST", "/api/data/naver/fetch", { ticker, start, end }, true, "naver-result", "naver-status");
++    });
++
++    // 3. 매수
++    document.getElementById("buyForm")?.addEventListener("submit", async (e) => {
++        e.preventDefault();
++
++        const ticker = document.getElementById("buy-ticker").value;
++        const price = Number(document.getElementById("buy-price").value);
++        const quantity = Number(document.getElementById("buy-quantity").value);
++
++        await callApi("POST", "/api/trade/buy", { ticker, price, quantity }, true, "buy-result", "buy-status");
++    });
++
++    // 4. 매도
++    document.getElementById("sellForm")?.addEventListener("submit", async (e) => {
++        e.preventDefault();
++
++        const ticker = document.getElementById("sell-ticker").value;
++        const price = Number(document.getElementById("sell-price").value);
++        const quantity = Number(document.getElementById("sell-quantity").value);
++
++        await callApi("POST", "/api/trade/sell", { ticker, price, quantity }, true, "sell-result", "sell-status");
++    });
++
++    // 5. 보유 종목
++    document.getElementById("holdingsBtn")?.addEventListener("click", async () => {
++        await callApi("GET", "/api/portfolio/holdings", null, true, "holdings-result", "holdings-status");
++    });
++
++    // 6. 거래 내역
++    document.getElementById("historyForm")?.addEventListener("submit", async (e) => {
++        e.preventDefault();
++
++        const from = document.getElementById("history-from").value;
++        const to = document.getElementById("history-to").value;
++
++        const params = new URLSearchParams();
++        if (from) params.append("from", from);
++        if (to) params.append("to", to);
++
++        await callApi("GET", "/api/trade/history?" + params.toString(), null, true, "history-result", "history-status");
++    });
++});
+\ No newline at end of file
+Index: ddit/src/main/resources/static/js/auth.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/resources/static/js/auth.js b/ddit/src/main/resources/static/js/auth.js
+new file mode 100644
+--- /dev/null	(date 1765921184612)
++++ b/ddit/src/main/resources/static/js/auth.js	(date 1765921184612)
+@@ -0,0 +1,71 @@
++document.addEventListener("DOMContentLoaded", () => {
++    showView("login");
++
++    // 화면 전환 버튼
++    document.getElementById("goRegisterBtn")?.addEventListener("click", () => {
++        showView("register");
++    });
++
++    document.getElementById("backToLoginBtn")?.addEventListener("click", () => {
++        showView("login");
++    });
++
++    const loginForm = document.getElementById("loginForm");
++    const registerForm = document.getElementById("registerForm");
++
++    // 로그인 페이지
++    loginForm?.addEventListener("submit", async(e) => {
++        e.preventDefault();
++
++        const username = document.getElementById("login-username").value;
++        const password = document.getElementById("login-password").value;
++
++        const result = await callApi(
++            "POST",
++            "/api/auth/login",
++            { username, password },
++            false,
++            "login-result",
++            "login-status"
++        );
++
++        if (!result) return;
++
++        const { res, data } = result;
++        if (!res.ok) return;
++
++        // 토큰 저장 + 주식 관리 페이지 이동
++        const token = (typeof data === "object")
++            ? (data.token || data.accessToken || data.jwt)
++            : null;
++
++        if (token) setToken(token);
++
++        showView("stock");
++    });
++
++    // 회원가입 페이지
++    registerForm?.addEventListener("submit", async(e) => {
++        e.preventDefault();
++
++        const username = document.getElementById("reg-username").value;
++        const password = document.getElementById("reg-password").value;
++        const email = document.getElementById("reg-email").value;
++
++        const result = await callApi(
++            "POST",
++            "/api/auth/register",
++            { username, password, email },
++            false,
++            "register-result",
++            "register-status"
++        );
++
++        if (!result) return;
++
++        if (result.res.ok) {
++            // 회원가입 성공 시 로그인 페이지로 넘어감
++            showView("login");
++        }
++    });
++});
+\ No newline at end of file
+Index: ddit/src/main/resources/static/index.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/resources/static/index.html b/ddit/src/main/resources/static/index.html
+new file mode 100644
+--- /dev/null	(date 1765918156382)
++++ b/ddit/src/main/resources/static/index.html	(date 1765918156382)
+@@ -0,0 +1,206 @@
++<!DOCTYPE html>
++<html lang="ko">
++<head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1" />
++    <title>STM(Stock Manage Program)</title>
++
++    <link rel="stylesheet" href="/css/style.css" />
++
++    <script defer src="/js/common.js"></script>
++    <script defer src="/js/auth.js"></script>
++    <script defer src="/js/stock.js"></script>
++</head>
++<body>
++<div class="bg"></div>
++<main class="center">
++    <!-- 로그인 화면 -->
++    <section id="loginSection" class="card">
++        <h1 class="card-title">로그인</h1>
++
++        <form id="loginForm" class="form">
++            <div class="field">
++                <label for="login-username">아이디</label>
++                <input id="login-username" type="text" placeholder="아이디 입력" required />
++            </div>
++
++            <div class="field">
++                <label for="login-password">비밀번호</label>
++                <input id="login-password" type="password" placeholder="비밀번호 입력" required />
++            </div>
++
++            <div class="btn-row">
++                <button type="button" id="goRegisterBtn" class="btn ghost">회원가입</button>
++                <button type="submit" class="btn primary">로그인</button>
++            </div>
++        </form>
++
++
++        <div id="login-status" class="status"></div>
++        <pre id="login-result" class="result"></pre>
++    </section>
++
++    <!-- 회원가입 화면 -->
++    <section id="registerSection" class="card hidden">
++        <h1 class="card-title">회원가입</h1>
++
++        <form id="registerForm" class="form">
++            <div class="field">
++                <label for="reg-username">아이디</label>
++                <input id="reg-username" type="text" placeholder="아이디 입력" required />
++            </div>
++
++            <div class="field">
++                <label for="reg-password">비밀번호</label>
++                <input id="reg-password" type="password" placeholder="비밀번호 입력" required />
++            </div>
++
++            <div class="field">
++                <label for="reg-email">이메일</label>
++                <input id="reg-email" type="email" placeholder="이메일 입력" required />
++            </div>
++
++            <div class="btn-col">
++                <button type="submit" class="btn primary wide">가입하기</button>
++                <button type="button" id="backToLoginBtn" class="btn ghost wide">로그인으로</button>
++            </div>
++        </form>
++
++        <div id="register-status" class="status"></div>
++        <pre id="register-result" class="result"></pre>
++    </section>
++
++    <!-- 주식 관리 화면 -->
++    <section id="stockSection" class="hidden">
++        <header class="header">
++            <h1 class="page-title">주식 관리</h1>
++            <button id="logoutBtn" class="btn ghost">로그아웃</button>
++        </header>
++
++        <!-- 1) 시세 조회 -->
++        <section class="panel">
++            <h2 class="subtitle">시세조회</h2>
++            <form id="priceForm" class="form">
++                <div class="grid3">
++                    <div class="field">
++                        <label for="price-ticker">종목 코드</label>
++                        <input id="price-ticker" type="text" placeholder="예: 005930" />
++                    </div>
++                    <div class="field">
++                        <label for="price-start">시작일</label>
++                        <input id="price-start" type="date" />
++                    </div>
++                    <div class="field">
++                        <label for="price-end">종료일</label>
++                        <input id="price-end" type="date" />
++                    </div>
++                </div>
++                <button type="submit" class="btn primary">조회</button>
++            </form>
++            <div id="price-status" class="status"></div>
++            <pre id="price-result" class="result"></pre>
++        </section>
++
++        <!-- 2) 네이버 시세 수집 -->
++        <section class="panel">
++            <h2 class="subtitle">네이버 시세 수집</h2>
++            <form id="naverFetchForm" class="form">
++                <div class="grid3">
++                    <div class="field">
++                        <label for="naver-ticker">종목 코드</label>
++                        <input id="naver-ticker" type="text" placeholder="예: 005930" required />
++                    </div>
++                    <div class="field">
++                        <label for="naver-start">시작일</label>
++                        <input id="naver-start" type="date" required />
++                    </div>
++                    <div class="field">
++                        <label for="naver-end">종료일</label>
++                        <input id="naver-end" type="date" required />
++                    </div>
++                </div>
++                <button type="submit" class="btn primary">수집</button>
++            </form>
++            <div id="naver-status" class="status"></div>
++            <pre id="naver-result" class="result"></pre>
++        </section>
++
++        <!-- 3) 매수 -->
++        <section class="panel">
++            <h2 class="subtitle">매수</h2>
++            <form id="buyForm" class="form">
++                <div class="grid3">
++                    <div class="field">
++                        <label for="buy-ticker">종목 코드</label>
++                        <input id="buy-ticker" type="text" required />
++                    </div>
++                    <div class="field">
++                        <label for="buy-price">가격</label>
++                        <input id="buy-price" type="number" step="0.01" required />
++                    </div>
++                    <div class="field">
++                        <label for="buy-quantity">수량</label>
++                        <input id="buy-quantity" type="number" required />
++                    </div>
++                </div>
++                <button type="submit" class="btn primary">매수</button>
++            </form>
++            <div id="buy-status" class="status"></div>
++            <pre id="buy-result" class="result"></pre>
++        </section>
++
++        <!-- 4) 매도 -->
++        <section class="panel">
++            <h2 class="subtitle">매도</h2>
++            <form id="sellForm" class="form">
++                <div class="grid3">
++                    <div class="field">
++                        <label for="sell-ticker">종목 코드</label>
++                        <input id="sell-ticker" type="text" required />
++                    </div>
++                    <div class="field">
++                        <label for="sell-price">가격</label>
++                        <input id="sell-price" type="number" step="0.01" required />
++                    </div>
++                    <div class="field">
++                        <label for="sell-quantity">수량</label>
++                        <input id="sell-quantity" type="number" required />
++                    </div>
++                </div>
++                <button type="submit" class="btn primary">매도</button>
++            </form>
++            <div id="sell-status" class="status"></div>
++            <pre id="sell-result" class="result"></pre>
++        </section>
++
++        <!-- 5) 보유 종목 -->
++        <section class="panel">
++            <h2 class="subtitle">보유 종목</h2>
++            <button id="holdingsBtn" class="btn primary">보유 종목 조회</button>
++            <div id="holdings-status" class="status"></div>
++            <pre id="holdings-result" class="result"></pre>
++        </section>
++
++        <!-- 6) 거래 내역 -->
++        <section class="panel">
++            <h2 class="subtitle">거래 내역</h2>
++            <form id="historyForm" class="form">
++                <div class="grid3">
++                    <div class="field">
++                        <label for="history-from">From</label>
++                        <input id="history-from" type="date" />
++                    </div>
++                    <div class="field">
++                        <label for="history-to">To</label>
++                        <input id="history-to" type="date" />
++                    </div>
++                </div>
++                <button type="submit" class="btn primary">내역 조회</button>
++            </form>
++            <div id="history-status" class="status"></div>
++            <pre id="history-result" class="result"></pre>
++        </section>
++    </section>
++</main>
++</body>
++</html>
+\ No newline at end of file
+Index: ddit/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>plugins {\r\n\tid 'java'\r\n\tid 'org.springframework.boot' version '3.4.12'\r\n\tid 'io.spring.dependency-management' version '1.1.7'\r\n}\r\n\r\ngroup = 'kr.or'\r\nversion = '0.0.1-SNAPSHOT'\r\nsourceCompatibility = '21'\r\ndescription = 'BootProj'\r\n\r\njava {\r\n\ttoolchain {\r\n\t\tlanguageVersion = JavaLanguageVersion.of(21)\r\n\t}\r\n}\r\n\r\nrepositories {\r\n\tmavenCentral()\r\n}\r\n\r\ndependencies {\r\n\timplementation 'org.springframework.boot:spring-boot-starter-data-jpa'\r\n    implementation 'com.mysql:mysql-connector-j'\r\n\timplementation 'org.springframework.boot:spring-boot-starter-mustache'\r\n\timplementation 'org.springframework.boot:spring-boot-starter-web'\r\n    implementation 'org.springframework.boot:spring-boot-starter-security' // Spring-Security 추가\r\n    implementation 'org.springframework.boot:spring-boot-starter-validation' // 유효성 검증 (Validation) 기능 추가\r\n\ttestImplementation 'org.springframework.boot:spring-boot-starter-test'\r\n    testImplementation 'org.springframework.boot:spring-boot-security-test'\r\n\ttestRuntimeOnly 'org.junit.platform:junit-platform-launcher'\r\n    compileOnly 'org.projectlombok:lombok'\r\n    annotationProcessor 'org.projectlombok:lombok'\r\n}\r\n\r\ntasks.named('test') {\r\n\tuseJUnitPlatform()\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/build.gradle b/ddit/build.gradle
+--- a/ddit/build.gradle	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/build.gradle	(date 1764739831870)
+@@ -20,14 +20,15 @@
+ }
+ 
+ dependencies {
+-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
++	implementation 'org.springframework.boot:spring-boot-starter-data-jpa' // JPA + Hibernate
+     implementation 'com.mysql:mysql-connector-j'
+ 	implementation 'org.springframework.boot:spring-boot-starter-mustache'
+-	implementation 'org.springframework.boot:spring-boot-starter-web'
+-    implementation 'org.springframework.boot:spring-boot-starter-security' // Spring-Security 추가
+-    implementation 'org.springframework.boot:spring-boot-starter-validation' // 유효성 검증 (Validation) 기능 추가
++	implementation 'org.springframework.boot:spring-boot-starter-web' // 웹 API
++    implementation 'org.springframework.boot:spring-boot-starter-security' // Spring-Security
++    implementation 'org.springframework.boot:spring-boot-starter-validation' // Bean 유효성 검증 (Validation) 기능
+ 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+-    testImplementation 'org.springframework.boot:spring-boot-security-test'
++    testImplementation 'org.springframework.security:spring-security-test'
++    runtimeOnly 'com.mysql:mysql-connector-j' // MySQL 드라이버
+ 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+     compileOnly 'org.projectlombok:lombok'
+     annotationProcessor 'org.projectlombok:lombok'
+Index: ddit/src/main/java/kr/or/ddit/config/SecurityBeansConfig.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/config/SecurityBeansConfig.java b/ddit/src/main/java/kr/or/ddit/config/SecurityBeansConfig.java
+new file mode 100644
+--- /dev/null	(date 1765921836608)
++++ b/ddit/src/main/java/kr/or/ddit/config/SecurityBeansConfig.java	(date 1765921836608)
+@@ -0,0 +1,47 @@
++package kr.or.ddit.config;
++
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++import org.springframework.security.config.annotation.web.builders.HttpSecurity;
++import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
++import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
++import org.springframework.security.crypto.password.PasswordEncoder;
++import org.springframework.security.web.SecurityFilterChain;
++import org.springframework.security.authentication.AuthenticationManager;
++import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
++
++@Configuration
++@EnableWebSecurity
++public class SecurityBeansConfig {
++    @Bean
++    public PasswordEncoder passwordEncoder() {
++        return new BCryptPasswordEncoder();
++    }
++
++    @Bean
++    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
++        http
++                .csrf(csrf -> csrf.disable())
++                .authorizeHttpRequests(auth -> auth
++                        // 정적 리소스 + 메인 진입접 허용
++                        .requestMatchers(
++                                "/", "index.html",
++                                "/css/**", "/js/**"
++                        ).permitAll()
++                        // 인증/회원가입 API는 모두 허용
++                        .requestMatchers("/api/auth/**").permitAll()
++                        // 나머지 API는 인증 필요
++                        .requestMatchers("/api/**").authenticated()
++                        .anyRequest().permitAll()
++                )
++                // 기본 로그인 폼 비활성화
++                .formLogin(form -> form.disable())
++                .logout(logout -> logout.logoutUrl("/logout"));
++        return http.build();
++    }
++
++    @Bean
++    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
++        return config.getAuthenticationManager();
++    }
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/data/StockDataService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.data;\r\n\r\nimport kr.or.ddit.stock.Stock;\r\nimport kr.or.ddit.stock.StockRepository;\r\nimport lombok.RequiredArgsConstructor;\r\nimport org.springframework.stereotype.Service;\r\nimport org.springframework.transaction.annotation.Transactional;\r\nimport org.springframework.web.client.RestTemplate;\r\n\r\nimport java.time.LocalDate;\r\nimport java.util.ArrayList;\r\nimport java.util.List;\r\nimport java.util.Random;\r\n\r\n@Service\r\n@RequiredArgsConstructor\r\npublic class StockDataService {\r\n    private final DailyPriceRepository dailyPriceRepository;\r\n    private final StockRepository stockRepository;\r\n    private final RestTemplate restTemplate; // API 호출을 위해 필요 (Bean 등록 필요)\r\n    private final Random random =  new Random();\r\n\r\n    // 1. 외부 API 호출 및 DB 저장 로직\r\n    @Transactional\r\n    public void fetchAndSavePrices(String ticker, LocalDate startDate, LocalDate endDate) {\r\n        // 1. 종목 확인\r\n        Stock stock = stockRepository.findByTicker(ticker)\r\n                .orElseThrow(() -> new IllegalArgumentException(\"존재하지 않는 종목입니다.\"));\r\n\r\n        // 2. 외부 API 호출\r\n        // String apiUrl = \"https://apiportal.koreainvestment.com/openapi/...\")\r\n        // String apiResponse = restTemplate.getForObject(apiUrl, String.class);\r\n\r\n        // TODO: 실제 API 응답(JSON)을 파싱하여 List<DailyPrice> 객체로 변환하는 복잡한 로직 구현\r\n\r\n        // 3. 임시 데이터 생성 (API 연동 전 테스트용)\r\n        //List<DailyPrice> fetchedPrices = createDummyData(stock, startDate, endDate);\r\n\r\n        // 4. DB에 저장\r\n        // dailyPriceRepository.saveAll(fetchedPrices);\r\n    }\r\n\r\n    // 2. 그래프 추종을 위한 데이터 조회 및 가공\r\n    public List<DailyPrice> getChartData(String ticker, LocalDate startDate, LocalDate endDate boolean applyNoise) {\r\n        // 1. DB에서 조회\r\n        List<DailyPrice> data = dailyPriceRepository.findByStock_TickerAndTradeDateBetweenOrderByTradeDateAsc(\r\n                ticker, startDate, endDate\r\n        );\r\n\r\n        // 2. 주가에 랜덤 값 적용 (random 값 지정 로직)\r\n        /* if (applyNoise) {\r\n            data = applyRandomNoise(data);\r\n        } */\r\n\r\n        return data;\r\n    }\r\n\r\n    // 3. 랜덤 값 지정 로직\r\n    private List<DailyPrice> applyRandomNoise(List<DailyPrice> data) {\r\n        // 실제 API에서 가져온 주가 데이터에 작은 랜덤 노이즈를 적용하여 시뮬레이션 효과 부여\r\n\r\n        for (DailyPrice dailyPrice : data) {\r\n            // -0.0. ~ +0.01 사이의 변화율 (noise: 0.01%)\r\n            double noiseFactor = 1 + (random.nextDouble() - 0.5) * 0.0002;\r\n\r\n            double originalClose = price.getClose();\r\n            price.setClose(originalClose * noiseFactor);\r\n            // 시가, 고가, 저가에도 noise 적용 가능\r\n        }\r\n\r\n        return data;\r\n    }\r\n\r\n    // Todo: createDummyData() 메서드 등은 생략\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/data/StockDataService.java b/ddit/src/main/java/kr/or/ddit/data/StockDataService.java
+--- a/ddit/src/main/java/kr/or/ddit/data/StockDataService.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/data/StockDataService.java	(date 1764723559419)
+@@ -1,75 +1,192 @@
+ package kr.or.ddit.data;
+ 
++import com.fasterxml.jackson.core.type.TypeReference;
++import com.fasterxml.jackson.databind.ObjectMapper;
++
+ import kr.or.ddit.stock.Stock;
+ import kr.or.ddit.stock.StockRepository;
+ import lombok.RequiredArgsConstructor;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.http.HttpEntity;
++import org.springframework.http.HttpHeaders;
++import org.springframework.http.HttpMethod;
++import org.springframework.http.ResponseEntity;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.web.client.RestTemplate;
+ 
+ import java.time.LocalDate;
+-import java.util.ArrayList;
++import java.time.format.DateTimeFormatter;
+ import java.util.List;
+ import java.util.Random;
+ 
+ @Service
+ @RequiredArgsConstructor
++@Slf4j
+ public class StockDataService {
+     private final DailyPriceRepository dailyPriceRepository;
+     private final StockRepository stockRepository;
+     private final RestTemplate restTemplate; // API 호출을 위해 필요 (Bean 등록 필요)
+     private final Random random =  new Random();
+ 
++    /**
++     * 네이버 금융 비공식 API에서 한국 주식 일봉 데이터를 가져와 DB에 저장하는 메서드
++     * @param ticker    조회 종목 코드
++     * @param startDate 조회 시작 일자
++     * @param endDate   조회 종료 일자
++     */
++
+     // 1. 외부 API 호출 및 DB 저장 로직
+     @Transactional
+-    public void fetchAndSavePrices(String ticker, LocalDate startDate, LocalDate endDate) {
+-        // 1. 종목 확인
+-        Stock stock = stockRepository.findByTicker(ticker)
+-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 종목입니다."));
++    public void fetchAndSaveFromNaver(String ticker, LocalDate startDate, LocalDate endDate) {
++        // 1. 종목 정보 조회 없으면 생성
++        Stock stock = stockRepository.findById(ticker)
++                .orElseGet(() -> {
++                    Stock s = new Stock();
++                    s.setTicker(ticker);
++                    s.setName(ticker);
++                    s.setMarket("KRX");
++                    return stockRepository.save(s);
++                });
++
++        // 2. 날짜 포맷
++        DateTimeFormatter formatter = DateTimeFormatter.BASIC_ISO_DATE;
++        String startStr = startDate.format(formatter);
++        String endStr = endDate.format(formatter);
++
++        String url = "https://api.finance.naver.com/siseJson.naver"
++                + "?symbol=" + ticker
++                + "&timeframe=day"
++                + "&requestType=1"
++                + "&startTime=" + startStr
++                + "&endTime=" + endStr;
++
++        try {
++            // 3. 네이버 API 호출
++            HttpHeaders headers = new HttpHeaders();
++            headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0");
++            headers.set(HttpHeaders.ACCEPT, "*/*");
++
++            HttpEntity<Void> entity = new HttpEntity<>(headers);
++
++            ResponseEntity<String> response = restTemplate.exchange(
++                    url,
++                    HttpMethod.GET,
++                    entity,
++                    String.class
++            );
++
++            if (!response.getStatusCode().is2xxSuccessful()) {
++                log.warn("네이버 응답 코드 비정상: status={}, body={}",
++                        response.getStatusCode(), response.getBody());
++                return;
++            }
++
++            String body = response.getBody();
++
++            if (body == null || body.length() < 10) {
++                log.warn("네이버 응답이 비어있음: url={}", url);
++                return;
++            }
++
++            int idx = body.indexOf('[');
++
++            if (idx > 0) {
++                body = body.substring(idx);
++            }
++
++            // 4. Jackson으로 파싱
++            ObjectMapper mapper = new ObjectMapper();
++            List<List<Object>> rows = mapper.readValue(body, new TypeReference<>() {});
+ 
+-        // 2. 외부 API 호출
+-        // String apiUrl = "https://apiportal.koreainvestment.com/openapi/...")
+-        // String apiResponse = restTemplate.getForObject(apiUrl, String.class);
++            if (rows.size() <= 1) {
++                log.warn("네이버에서 받은 데이터가 거의 없음: url={}", url);
++                return;
++            }
+ 
+-        // TODO: 실제 API 응답(JSON)을 파싱하여 List<DailyPrice> 객체로 변환하는 복잡한 로직 구현
++            // 0번 인덱스는 헤더 (["날짜","시가","고가","저가","종가","거래량", ...])
++            for (int i = 1; i < rows.size(); i++) {
++                List<Object> row = rows.get(i);
++                if (row == null || row.size() < 6) {
++                    continue;
++                }
+ 
+-        // 3. 임시 데이터 생성 (API 연동 전 테스트용)
+-        //List<DailyPrice> fetchedPrices = createDummyData(stock, startDate, endDate);
++                String rawDate = row.getFirst().toString().replace(".", "").trim();
+ 
+-        // 4. DB에 저장
+-        // dailyPriceRepository.saveAll(fetchedPrices);
+-    }
++                if (rawDate.isEmpty()) {
++                    continue;
++                }
++                LocalDate tradeDate = LocalDate.parse(rawDate, formatter);
+ 
+-    // 2. 그래프 추종을 위한 데이터 조회 및 가공
+-    public List<DailyPrice> getChartData(String ticker, LocalDate startDate, LocalDate endDate boolean applyNoise) {
+-        // 1. DB에서 조회
+-        List<DailyPrice> data = dailyPriceRepository.findByStock_TickerAndTradeDateBetweenOrderByTradeDateAsc(
+-                ticker, startDate, endDate
+-        );
++                Double open = toDouble(row.get(1));
++                Double high = toDouble(row.get(2));
++                Double low = toDouble(row.get(3));
++                Double close = toDouble(row.get(4));
++                Long volume = toLong(row.get(5));
++
++                if (close == null) {
++                    continue;
++                }
++
++                DailyPrice dailyPrice = new DailyPrice();
++                dailyPrice.setStock(stock);
++                dailyPrice.setTradeDate(tradeDate);
++                dailyPrice.setOpen(open);
++                dailyPrice.setHigh(high);
++                dailyPrice.setLow(low);
++                dailyPrice.setClose(close);
++                dailyPrice.setVolume(volume);
++
++                dailyPriceRepository.save(dailyPrice);
++            }
++
++            log.info("네이버 데이터 저장 완료: ticker={}, rows={}", ticker, rows.size() - 1);
++
++        } catch (Exception e) {
++            log.error("네이버 API 호출/파싱 중 오류 발생: {}", e.getMessage(), e);
++        }
++    }
++
++    public List<DailyPrice> getChartData(String ticker,
++                                         LocalDate startDate,
++                                         LocalDate endDate,
++                                         boolean applyNoise) {
++        List<DailyPrice> data = dailyPriceRepository
++                .findByStock_TickerAndTradeDateBetweenOrderByTradeDateAsc(
++                        ticker, startDate, endDate
++                );
+ 
+-        // 2. 주가에 랜덤 값 적용 (random 값 지정 로직)
+-        /* if (applyNoise) {
+-            data = applyRandomNoise(data);
+-        } */
++        if (applyNoise) {
++            applyRandomNoise(data);
++        }
+ 
+         return data;
+     }
+ 
+-    // 3. 랜덤 값 지정 로직
+-    private List<DailyPrice> applyRandomNoise(List<DailyPrice> data) {
+-        // 실제 API에서 가져온 주가 데이터에 작은 랜덤 노이즈를 적용하여 시뮬레이션 효과 부여
+-
++    private void applyRandomNoise(List<DailyPrice> data) {
+         for (DailyPrice dailyPrice : data) {
+-            // -0.0. ~ +0.01 사이의 변화율 (noise: 0.01%)
++            // -0.01% ~ +0.01% 사이의 미세한 노이즈
+             double noiseFactor = 1 + (random.nextDouble() - 0.5) * 0.0002;
++            double originalClose =  dailyPrice.getClose();
++            dailyPrice.setClose(originalClose * noiseFactor);
++        }
++    }
+ 
+-            double originalClose = price.getClose();
+-            price.setClose(originalClose * noiseFactor);
+-            // 시가, 고가, 저가에도 noise 적용 가능
+-        }
++    private Double toDouble(Object value) {
++        if (value == null) return null;
++        if (value instanceof Number n) return n.doubleValue();
++
++        String s = value.toString().replace(",", "").trim();
++        if (s.isEmpty() || s.equalsIgnoreCase("null")) return null;
++        return Double.parseDouble(s);
++    }
+ 
+-        return data;
+-    }
++    private Long toLong(Object value) {
++        if (value == null) return null;
++        if (value instanceof Number n) return n.longValue();
+ 
+-    // Todo: createDummyData() 메서드 등은 생략
++        String s = value.toString().replace(",", "").trim();
++        if (s.isEmpty() || s.equalsIgnoreCase("null")) return null;
++        return Long.parseLong(s);
++    }
+ }
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/data/DailyPrice.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.data;\r\n\r\nimport kr.or.ddit.stock.Stock;\r\nimport jakarta.persistence.*;\r\nimport lombok.Getter;\r\nimport lombok.Setter;\r\nimport java.time.LocalDate;\r\n\r\n@Entity\r\n@Table(name = \"daily_price\")\r\n@Getter\r\n@Setter\r\npublic class DailyPrice {\r\n    @Id\r\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\r\n    private Long id; // 내부적으로 사용한 PK\r\n\r\n    // ManyToOne 관계: 여러 DailyPrice가 하나의 Stock에 연결됨\r\n    @ManyToOne(fetch = FetchType.LAZY)\r\n    @JoinColumn(name = \"ticker\", nullable = false)\r\n    private Stock stock;\r\n\r\n    @Column(nullable = false)\r\n    private LocalDate tradeDate; // 거래 날짜(yyyy-mm-dd)\r\n\r\n    private Double open; // 시가\r\n    private Double high; // 고가\r\n    private Double low; // 저가\r\n    \r\n    @Column(nullable = false)\r\n    private Double close; // 종가\r\n    \r\n    private Long volume; // 거래량\r\n\r\n    /* 복합 유니크 제약 조건: 하나의 종목(ticker)에 같은 날짜(tradeDate) 데이터는 하나만 존재해야 함\r\n    실제 DB 스키마 생성 시 @Table(uniqueConstraints = {@UniqueConstraint(columnNames = {\"ticker\", \"tradeDate\"})}) 추가 필요 */\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/data/DailyPrice.java b/ddit/src/main/java/kr/or/ddit/data/DailyPrice.java
+--- a/ddit/src/main/java/kr/or/ddit/data/DailyPrice.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/data/DailyPrice.java	(date 1764689673955)
+@@ -4,10 +4,14 @@
+ import jakarta.persistence.*;
+ import lombok.Getter;
+ import lombok.Setter;
++
+ import java.time.LocalDate;
+ 
+ @Entity
+-@Table(name = "daily_price")
++@Table(
++        name = "daily_price",
++        uniqueConstraints = @UniqueConstraint(columnNames = {"ticker", "trade_date"})
++)
+ @Getter
+ @Setter
+ public class DailyPrice {
+@@ -20,7 +24,7 @@
+     @JoinColumn(name = "ticker", nullable = false)
+     private Stock stock;
+ 
+-    @Column(nullable = false)
++    @Column(name = "trade_date", nullable = false)
+     private LocalDate tradeDate; // 거래 날짜(yyyy-mm-dd)
+ 
+     private Double open; // 시가
+@@ -31,7 +35,4 @@
+     private Double close; // 종가
+     
+     private Long volume; // 거래량
+-
+-    /* 복합 유니크 제약 조건: 하나의 종목(ticker)에 같은 날짜(tradeDate) 데이터는 하나만 존재해야 함
+-    실제 DB 스키마 생성 시 @Table(uniqueConstraints = {@UniqueConstraint(columnNames = {"ticker", "tradeDate"})}) 추가 필요 */
+-}
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/data/DailyPriceRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.data;\r\n\r\nimport org.springframework.data.jpa.repository.JpaRepository;\r\nimport java.time.LocalDate;\r\nimport java.util.List;\r\n\r\npublic interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {\r\n    /*\r\n    * 특정 종목 코드와 기간(시작일 ~ 종료일) 사이의 일별 주가를 조회\r\n    * 그래프 추종 기능의 핵심 조회 메서드\r\n    */\r\n    List<DailyPrice> findByStock_TickerAndTradeDateBetweenOrderByTradeDateAsc(\r\n            String ticker,\r\n            LocalDate tradeDate,\r\n            LocalDate endDate\r\n    );\r\n\r\n    // 특정 종목의 가장 최근 날짜 데이터를 조회하는 메서드 (업데이트 로직에 필요)\r\n    List<DailyPrice> findTop1ByStock_TickerOrderByTradeDateDesc(String ticker);\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/data/DailyPriceRepository.java b/ddit/src/main/java/kr/or/ddit/data/DailyPriceRepository.java
+--- a/ddit/src/main/java/kr/or/ddit/data/DailyPriceRepository.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/data/DailyPriceRepository.java	(date 1764694132176)
+@@ -1,8 +1,11 @@
+ package kr.or.ddit.data;
+ 
++import kr.or.ddit.stock.Stock;
+ import org.springframework.data.jpa.repository.JpaRepository;
++
+ import java.time.LocalDate;
+ import java.util.List;
++import java.util.Optional;
+ 
+ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
+     /*
+@@ -15,6 +18,6 @@
+             LocalDate endDate
+     );
+ 
+-    // 특정 종목의 가장 최근 날짜 데이터를 조회하는 메서드 (업데이트 로직에 필요)
+-    List<DailyPrice> findTop1ByStock_TickerOrderByTradeDateDesc(String ticker);
++    // 특정 종목의 가장 최근 일자 데이터
++    Optional<DailyPrice> findTopByStockOrderByTradeDateDesc(Stock stock);
+ }
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/user/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.user;\r\n\r\nimport jakarta.persistence.*;\r\nimport lombok.Getter;\r\nimport lombok.Setter;\r\nimport java.util.Collection;\r\nimport org.springframework.security.core.GrantedAuthority;\r\nimport org.springframework.security.core.userdetails.UserDetails;\r\n\r\n@Entity\r\n@Table(name = \"user\")\r\n@Getter\r\n@Setter\r\npublic class User implements UserDetails { // Spring Security를 위해 UserDetails 구현\r\n    @Id\r\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\r\n    private Long id;\r\n\r\n    @Column(unique = true, nullable = false)\r\n    private String username;\r\n\r\n    @Column(nullable = false)\r\n    private String password;\r\n\r\n    private String email;\r\n\r\n    // 가상 자산 잔고(초기 자본금)\r\n    private double balance = 10000000.0;\r\n\r\n    // --- UserDetails 구현 필수 메서드 ---\r\n\r\n    // 사용자의 권한 목록을 리턴\r\n    @Override\r\n    public Collection<? extends GrantedAuthority> getAuthorities() {\r\n        return null;\r\n    }\r\n\r\n    // 계정 만료 여부 리턴 (true: 만료 안 됨)\r\n    @Override\r\n    public boolean isAccountNonExpired() {\r\n        return true;\r\n    }\r\n\r\n    // 계정 잠금 여부 리턴 (true: 잠금 안 됨)\r\n    @Override\r\n    public boolean isAccountNonLocked() {\r\n        return true;\r\n    }\r\n\r\n    // 자격 증명(비밀번호) 만료 여부 리턴 (true: 만료 안 됨)\r\n    @Override\r\n    public boolean isCredentialsNonExpired() {\r\n        return true;\r\n    }\r\n\r\n    // 계정 활성화 여부 리턴 (true: 활성화)\r\n    @Override\r\n    public boolean isEnabled() {\r\n        return true;\r\n    }\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/user/User.java b/ddit/src/main/java/kr/or/ddit/user/User.java
+--- a/ddit/src/main/java/kr/or/ddit/user/User.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/user/User.java	(date 1764700518780)
+@@ -6,9 +6,11 @@
+ import java.util.Collection;
+ import org.springframework.security.core.GrantedAuthority;
+ import org.springframework.security.core.userdetails.UserDetails;
++import org.springframework.security.core.authority.SimpleGrantedAuthority;
++import java.util.Collections;
+ 
+ @Entity
+-@Table(name = "user")
++@Table(name = "users")
+ @Getter
+ @Setter
+ public class User implements UserDetails { // Spring Security를 위해 UserDetails 구현
+@@ -32,7 +34,7 @@
+     // 사용자의 권한 목록을 리턴
+     @Override
+     public Collection<? extends GrantedAuthority> getAuthorities() {
+-        return null;
++        return Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"));
+     }
+ 
+     // 계정 만료 여부 리턴 (true: 만료 안 됨)
+@@ -58,4 +60,4 @@
+     public boolean isEnabled() {
+         return true;
+     }
+-}
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/Stock.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.stock;\r\n\r\nimport jakarta.persistence.Entity;\r\nimport jakarta.persistence.Id;\r\nimport jakarta.persistence.Column;\r\nimport jakarta.persistence.Table;\r\nimport lombok.Getter;\r\nimport lombok.Setter;\r\n\r\n@Entity\r\n@Table(name = \"stock_info\") // DB 테이블 이름 지정\r\n@Getter\r\n@Setter\r\npublic class Stock {\r\n    // 종목 코드는 PK이며, 데이터의 고유 식별자의 역할\r\n    @Id\r\n    @Column(length = 10, nullable = false)\r\n    private String ticker; // 종목코드\r\n    \r\n    @Column(nullable = false)\r\n    private String name; // 종목명\r\n    \r\n    private String market; // 시장 구분\r\n\r\n    // 필요시 Industry, Sector등 정보 추가 가능\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/Stock.java b/ddit/src/main/java/kr/or/ddit/stock/Stock.java
+--- a/ddit/src/main/java/kr/or/ddit/stock/Stock.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/stock/Stock.java	(date 1764700758427)
+@@ -23,4 +23,4 @@
+     private String market; // 시장 구분
+ 
+     // 필요시 Industry, Sector등 정보 추가 가능
+-}
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/dto/HoldingResponse.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/dto/HoldingResponse.java b/ddit/src/main/java/kr/or/ddit/stock/dto/HoldingResponse.java
+new file mode 100644
+--- /dev/null	(date 1764700725641)
++++ b/ddit/src/main/java/kr/or/ddit/stock/dto/HoldingResponse.java	(date 1764700725641)
+@@ -0,0 +1,21 @@
++package kr.or.ddit.stock.dto;
++
++import lombok.*;
++
++@Getter
++@Setter
++@NoArgsConstructor
++@AllArgsConstructor
++@Builder
++public class HoldingResponse {
++    private String ticker;              // 종목 코드
++    private String name;                 // 종목 이름
++
++    private int quantity;               // 보유 수량
++    private double avgPrice;            // 평단가
++
++    private Double currentPrice;        // 현재가 없으면 null
++    private Double evaluationAmount;    // 평가 금액 (currentPrice * quantity)
++    private Double profitLoss;          // 평가 손익 (evaluation - 매수원금)
++    private Double profitLossRate;      // 평가 수익률(%)
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/dto/TradeHistoryResponse.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/dto/TradeHistoryResponse.java b/ddit/src/main/java/kr/or/ddit/stock/dto/TradeHistoryResponse.java
+new file mode 100644
+--- /dev/null	(date 1764683134892)
++++ b/ddit/src/main/java/kr/or/ddit/stock/dto/TradeHistoryResponse.java	(date 1764683134892)
+@@ -0,0 +1,22 @@
++package kr.or.ddit.stock.dto;
++
++
++import lombok.*;
++import java.time.LocalDateTime;
++
++@Getter
++@Setter
++@NoArgsConstructor
++@AllArgsConstructor
++@Builder
++public class TradeHistoryResponse {
++    private String ticker;       // 종목 코드
++    private String name;         // 종목 이름
++
++    private String side;         // "BUY" or "SELL"
++    private int quantity;        // 수량
++    private int price;           // 체결가
++    private double totalAmount;  // 체결금액
++
++    private LocalDateTime tradedAt; // 체결 시각
++}
+Index: ddit/src/main/java/kr/or/ddit/stock/TradeSide.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/TradeSide.java b/ddit/src/main/java/kr/or/ddit/stock/TradeSide.java
+new file mode 100644
+--- /dev/null	(date 1764686842830)
++++ b/ddit/src/main/java/kr/or/ddit/stock/TradeSide.java	(date 1764686842830)
+@@ -0,0 +1,6 @@
++package kr.or.ddit.stock;
++
++public enum TradeSide {
++    BUY,
++    SELL
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/user/dto/UserProfileResponse.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/user/dto/UserProfileResponse.java b/ddit/src/main/java/kr/or/ddit/user/dto/UserProfileResponse.java
+new file mode 100644
+--- /dev/null	(date 1764683305761)
++++ b/ddit/src/main/java/kr/or/ddit/user/dto/UserProfileResponse.java	(date 1764683305761)
+@@ -0,0 +1,14 @@
++package kr.or.ddit.user.dto;
++
++import lombok.*;
++
++@Getter
++@Setter
++@NoArgsConstructor
++@AllArgsConstructor
++@Builder
++public class UserProfileResponse {
++    private String username;
++    private String email;
++    private double balance;
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/user/UserPortfolioController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/user/UserPortfolioController.java b/ddit/src/main/java/kr/or/ddit/user/UserPortfolioController.java
+new file mode 100644
+--- /dev/null	(date 1764708825447)
++++ b/ddit/src/main/java/kr/or/ddit/user/UserPortfolioController.java	(date 1764708825447)
+@@ -0,0 +1,122 @@
++package kr.or.ddit.user;
++
++import kr.or.ddit.data.DailyPrice;
++import kr.or.ddit.data.DailyPriceRepository;
++import kr.or.ddit.stock.*;
++import kr.or.ddit.stock.dto.HoldingResponse;
++import kr.or.ddit.stock.dto.TradeHistoryResponse;
++import kr.or.ddit.user.dto.UserProfileResponse;
++import lombok.RequiredArgsConstructor;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.*;
++
++import java.util.List;
++import java.util.Optional;
++import java.util.stream.Collectors;
++
++
++@RestController
++@RequestMapping("/api/user")
++@RequiredArgsConstructor
++public class UserPortfolioController {
++    private final UserRepository userRepository;
++    private final HoldingRepository holdingRepository;
++    private final TradeHistoryRepository tradeHistoryRepository;
++    private final DailyPriceRepository dailyPriceRepository;
++
++    // 1. 내 기본 정보 조회: username / email / balance
++    @GetMapping("/me")
++    public ResponseEntity<UserProfileResponse> getMe(@RequestParam String username) {
++
++        User user = userRepository.findByUsername(username)
++                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
++
++        UserProfileResponse response = UserProfileResponse.builder()
++                .username(user.getUsername())
++                .email(user.getEmail())
++                .balance(user.getBalance())
++                .build();
++
++        return ResponseEntity.ok(response);
++    }
++
++    // 2. 내 보유 종목 리스트
++    @GetMapping("/holdings")
++    public ResponseEntity<List<HoldingResponse>> getHoldings(@RequestParam String username) {
++
++        User user = userRepository.findByUsername(username)
++                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
++
++        List<Holding> holdings = holdingRepository.findByUser(user);
++
++        List<HoldingResponse> responses = holdings.stream()
++                .map(holding -> {
++                    Stock stock = holding.getStock();
++
++                    // 최신 시세 조회
++                    Optional<DailyPrice> latestOpt =
++                            dailyPriceRepository.findTopByStockOrderByTradeDateDesc(stock);
++
++                    Double currentPrice = null;
++                    Double evaluationAmount = null;
++                    Double profitLoss = null;
++                    Double profitLossRate = null;
++
++                    int quantity = holding.getQuantity();
++                    double avgPrice = holding.getAvgPrice();
++                    double principal = avgPrice * quantity;
++
++                    if (latestOpt.isPresent()) {
++                        double close = latestOpt.get().getClose(); // 종가 기준
++                        currentPrice = close;
++                        evaluationAmount = close * quantity;
++                        profitLoss = evaluationAmount - principal;
++                        // 수익률(%) = (손익 / 원금) * 100
++                        profitLossRate = (principal == 0) ? null : (profitLoss / principal) * 100.0;
++                    }
++
++                    return HoldingResponse.builder()
++                            .ticker(stock.getTicker())
++                            .name(stock.getName())
++                            .quantity(quantity)
++                            .avgPrice(avgPrice)
++                            .currentPrice(currentPrice)
++                            .evaluationAmount(evaluationAmount)
++                            .profitLoss(profitLoss)
++                            .profitLossRate(profitLossRate)
++                            .build();
++                })
++                .collect(Collectors.toList());
++
++        return ResponseEntity.ok(responses);
++    }
++
++    // 3. 내 거래 내역 리스트
++    @GetMapping("/trades")
++    public ResponseEntity<List<TradeHistoryResponse>> getTrades(@RequestParam String username) {
++
++        User user = userRepository.findByUsername(username)
++                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
++
++        List<TradeHistory> histories =
++                tradeHistoryRepository.findByUserOrderByTradedAtDesc(user);
++
++        List<TradeHistoryResponse> responses = histories.stream()
++                .map(history -> {
++                    Stock stock = history.getStock();
++
++                    return TradeHistoryResponse.builder()
++                            .ticker(stock.getTicker())
++                            .name(stock.getName())
++                            .side(history.getSide().name())  // enum -> "BUY" or "SELL"
++                            .quantity(history.getQuantity())
++                            .price(history.getPrice())
++                            .totalAmount(history.getTotalAmount())
++                            .tradedAt(history.getTradedAt())
++                            .build();
++                })
++                .collect(Collectors.toList());
++
++        return ResponseEntity.ok(responses);
++    }
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/data/ChartController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.data;\r\n\r\nimport lombok.RequiredArgsConstructor;\r\nimport org.springframework.format.annotation.DateTimeFormat;\r\nimport org.springframework.http.ResponseEntity;\r\nimport org.springframework.web.bind.annotation.GetMapping;\r\nimport org.springframework.web.bind.annotation.RequestMapping;\r\nimport org.springframework.web.bind.annotation.RequestParam;\r\nimport org.springframework.web.bind.annotation.RestController;\r\n\r\nimport java.time.LocalDate;\r\nimport java.util.List;\r\n\r\n@RestController\r\n@RequestMapping(\"/api/data\")\r\n@RequiredArgsConstructor\r\npublic class ChartController {\r\n    private final StockDataService stockDataService;\r\n\r\n    @GetMapping(\"/chart\")\r\n    public ResponseEntity<List<DailyPrice>> getChartData(\r\n            @RequestParam String ticker,\r\n            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start, // 날짜 형식 자동 변환\r\n            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,\r\n            @RequestParam(defaultValue = \"false\") boolean noise\r\n    ) {\r\n        // Service를 호출하여 필터링된 데이터와 랜덤 노이즈가 적용된 데이터를 받아오기\r\n        List<DailyPrice> chartData = stockDataService.getChartData(ticker, start, end, noise);\r\n\r\n        if (chartData.isEmpty()) {\r\n            return ResponseEntity.notFound().build();\r\n        }\r\n\r\n        return ResponseEntity.ok(chartData);\r\n    }\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/data/ChartController.java b/ddit/src/main/java/kr/or/ddit/data/ChartController.java
+--- a/ddit/src/main/java/kr/or/ddit/data/ChartController.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/data/ChartController.java	(date 1764724322692)
+@@ -3,10 +3,7 @@
+ import lombok.RequiredArgsConstructor;
+ import org.springframework.format.annotation.DateTimeFormat;
+ import org.springframework.http.ResponseEntity;
+-import org.springframework.web.bind.annotation.GetMapping;
+-import org.springframework.web.bind.annotation.RequestMapping;
+-import org.springframework.web.bind.annotation.RequestParam;
+-import org.springframework.web.bind.annotation.RestController;
++import org.springframework.web.bind.annotation.*;
+ 
+ import java.time.LocalDate;
+ import java.util.List;
+@@ -17,20 +14,27 @@
+ public class ChartController {
+     private final StockDataService stockDataService;
+ 
++    // 1. 네이버 -> DB로 일봉 데이터 동기화
++    @GetMapping("/naver/fetch")
++    public ResponseEntity<String> fetchFromNaver(
++            @RequestParam String ticker,
++            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start, // 날짜 형식 자동 변환
++            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end
++    ) {
++        stockDataService.fetchAndSaveFromNaver(ticker, start, end);
++        return ResponseEntity.ok("OK");
++    }
++
++    // 2. DB에서 차트 데이터 조회
+     @GetMapping("/chart")
+-    public ResponseEntity<List<DailyPrice>> getChartData(
++    public ResponseEntity<List<DailyPrice>> getChart(
+             @RequestParam String ticker,
+             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start, // 날짜 형식 자동 변환
+             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
+             @RequestParam(defaultValue = "false") boolean noise
+     ) {
+-        // Service를 호출하여 필터링된 데이터와 랜덤 노이즈가 적용된 데이터를 받아오기
+-        List<DailyPrice> chartData = stockDataService.getChartData(ticker, start, end, noise);
++        List<DailyPrice> data = stockDataService.getChartData(ticker, start, end, noise);
+ 
+-        if (chartData.isEmpty()) {
+-            return ResponseEntity.notFound().build();
+-        }
+-
+-        return ResponseEntity.ok(chartData);
++        return ResponseEntity.ok(data);
+     }
+ }
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/TradeRequest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.stock;\r\n\r\nimport jakarta.validation.constraints.Min;\r\nimport jakarta.validation.constraints.NotBlank;\r\nimport jakarta.validation.constraints.NotNull;\r\nimport lombok.Getter;\r\nimport lombok.Setter;\r\n\r\n@Getter\r\n@Setter\r\npublic class TradeRequest {\r\n    @NotBlank(message = \"종목 코드는 필수입니다.\")\r\n    private String ticker;\r\n\r\n    @NotNull(message = \"수량은 필수입니다.\")\r\n    @Min(value = 1, message = \"수량은 최소 1주 이상이어야 힙니다.\")\r\n    private Integer quantity;\r\n\r\n    @NotNull(message = \"주문 가격은 필수입니다.\")\r\n    @Min(value = 1, message = \"가격은 1원 이상이어야 합니다.\")\r\n    private Integer price; // 주문 가격\r\n\r\n    // 매수/매도를 구분하는 필드는 TradeController에서 경로를 통해 구분 가능\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/TradeRequest.java b/ddit/src/main/java/kr/or/ddit/stock/TradeRequest.java
+--- a/ddit/src/main/java/kr/or/ddit/stock/TradeRequest.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/stock/TradeRequest.java	(date 1764661576997)
+@@ -13,7 +13,7 @@
+     private String ticker;
+ 
+     @NotNull(message = "수량은 필수입니다.")
+-    @Min(value = 1, message = "수량은 최소 1주 이상이어야 힙니다.")
++    @Min(value = 1, message = "수량은 최소 1주 이상이어야 합니다.")
+     private Integer quantity;
+ 
+     @NotNull(message = "주문 가격은 필수입니다.")
+Index: ddit/src/main/java/kr/or/ddit/user/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.user;\r\n\r\nimport lombok.RequiredArgsConstructor;\r\nimport org.springframework.security.core.userdetails.UserDetailsService;\r\nimport org.springframework.security.core.userdetails.UsernameNotFoundException;\r\nimport org.springframework.security.crypto.password.PasswordEncoder;\r\nimport org.springframework.stereotype.Service;\r\nimport org.springframework.transaction.annotation.Transactional;\r\n\r\n@Service\r\n@RequiredArgsConstructor // final 필드를 사용하는 생성자를 자동으로 만들어주는 Lombok 어노테이션\r\npublic class UserService implements UserDetailsService {\r\n    private final UserRepository userRepository;\r\n    private final PasswordEncoder passwordEncoder; // SecurityConfig에서 Bean으로 등록한 객체\r\n\r\n    // 1. Spring Security의 핵심 메서드: 사용자 이름으로 DB에서 User 객체를 로드\r\n    @Override\r\n    public User loadUserByUsername(String username) throws UsernameNotFoundException {\r\n        return userRepository.findByUsername(username)\r\n                .orElseThrow(() -> new UsernameNotFoundException(\"사용자\" + username + \"를 찾을 수 없습니다.\"));\r\n    }\r\n\r\n    // 2. 회원가입 로직\r\n    @Transactional\r\n    public User registerUser(UserRegisterRequest request) {\r\n\r\n        // 중복 사용자 이름 검증\r\n        if (userRepository.findByUsername(request.getUsername()).isPresent()) {\r\n            throw new IllegalArgumentException(\"이미 존재하는 사용자 이름입니다.\");\r\n        }\r\n\r\n        // DTO를 Entity로 변환 및 비밀번호 암호화\r\n        User newUser = new User();\r\n        newUser.setUsername(request.getUsername());\r\n\r\n        // 비밀번호를 암호화하여 저장\r\n        String encodedPassword = passwordEncoder.encode(request.getPassword());\r\n        newUser.setPassword(encodedPassword);\r\n\r\n        newUser.setEmail(request.getEmail());\r\n\r\n        return userRepository.save(newUser);\r\n    }\r\n\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/user/UserService.java b/ddit/src/main/java/kr/or/ddit/user/UserService.java
+--- a/ddit/src/main/java/kr/or/ddit/user/UserService.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/user/UserService.java	(date 1765470512814)
+@@ -42,4 +42,15 @@
+         return userRepository.save(newUser);
+     }
+ 
+-}
++    public User login(UserLoginRequest request) {
++        User user = userRepository.findByUsername(request.getUsername())
++                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
++
++        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
++            throw new IllegalArgumentException("비밀번호가 올바르지 않습니다.");
++        }
++
++        return user;
++    }
++
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/TradeService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.stock;\r\n\r\nimport kr.or.ddit.user.User;\r\nimport kr.or.ddit.user.UserRepository;\r\nimport lombok.RequiredArgsConstructor;\r\nimport org.springframework.stereotype.Service;\r\nimport org.springframework.transaction.annotation.Transactional;\r\n\r\n@Service\r\n@RequiredArgsConstructor\r\npublic class TradeService {\r\n    private final UserRepository userRepository; // User 객체의 잔고를 수정하기 위해 필요\r\n    private final StockRepository stockRepository;\r\n\r\n    // TODO: DailyPrice, TradeHistory, Repository도 필요\r\n    @Transactional // DB transaction 보장(잔고 처리 중 오류나면 롤백)\r\n    public void buyStock(String username, TradeRequest request) {\r\n\r\n        // 1. user 잔고 확인\r\n        User user = userRepository.findByUsername(username)\r\n                .orElseThrow(() -> new IllegalArgumentException(\"사용자를 찾을 수 없습니다.\"));\r\n\r\n        // 2. 종목 확인\r\n        stockRepository.findByTicker(request.getTicker())\r\n                .orElseThrow(() -> new IllegalArgumentException(\"존재하지 않는 종목 코드입니다.\"));\r\n\r\n        // 3. 거래 금액 계산\r\n        double totalCost = request.getPrice() * request.getQuantity();\r\n\r\n        // 4. 잔고 확인 및 매수 처리\r\n        if (user.getBalance() < totalCost) {\r\n            throw new IllegalArgumentException(\"잔고가 부족합니다. (현재 잔고: \" + user.getBalance() + \")\");\r\n        }\r\n\r\n        // 5. DB 업데이트\r\n        user.setBalance(user.getBalance() - totalCost);\r\n        // TODO: 매매기록 (TradeHistory) 저장 로직 추가\r\n\r\n        userRepository.save(user);\r\n        // 실제 보유 주식 수량 관리 로직은 이 코드가 완료된 후 추가\r\n    }\r\n    // TODO: public void sellStock() 메서드 추가 필요 시\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/TradeService.java b/ddit/src/main/java/kr/or/ddit/stock/TradeService.java
+--- a/ddit/src/main/java/kr/or/ddit/stock/TradeService.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/stock/TradeService.java	(date 1764703186020)
+@@ -6,38 +6,143 @@
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ 
++import java.time.LocalDateTime;
++
+ @Service
+ @RequiredArgsConstructor
+ public class TradeService {
++
+     private final UserRepository userRepository; // User 객체의 잔고를 수정하기 위해 필요
+     private final StockRepository stockRepository;
++    private final HoldingRepository holdingRepository;
++    private final TradeHistoryRepository tradeHistoryRepository;
+ 
+-    // TODO: DailyPrice, TradeHistory, Repository도 필요
+-    @Transactional // DB transaction 보장(잔고 처리 중 오류나면 롤백)
+-    public void buyStock(String username, TradeRequest request) {
+-
+-        // 1. user 잔고 확인
+-        User user = userRepository.findByUsername(username)
++    // 공통: username으로 User 조회
++    private User getUserOrThrow(String username) {
++        return userRepository.findByUsername(username)
+                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
++    }
+ 
+-        // 2. 종목 확인
+-        stockRepository.findByTicker(request.getTicker())
++    // 공통: ticker로 Stock 조회
++    private Stock getStockOrThrow(String ticker) {
++        return stockRepository.findByTicker(ticker)
+                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 종목 코드입니다."));
++    }
++
++    // 공통: 수량/가격 검증
++    private void validateQuantityAndPrice(int quantity, int price) {
++        if (quantity <= 0) {
++            throw new IllegalArgumentException("수량은 1주 이상이어야 합니다.");
++        }
++        if (price <= 0) {
++            throw new IllegalArgumentException("가격은 1원 이상이어야 합니다.");
++        }
++    }
++
++    // 공통: 거래 내역 기록
++    private void recordTrade(User user,
++                             Stock stock,
++                             TradeSide side,
++                             int quantity,
++                             int price,
++                             double totalAmount) {
++
++        TradeHistory history = TradeHistory.builder()
++                .user(user)
++                .stock(stock)
++                .side(side)
++                .quantity(quantity)
++                .price(price)
++                .totalAmount(totalAmount)
++                .tradedAt(LocalDateTime.now())
++                .build();
+ 
+-        // 3. 거래 금액 계산
+-        double totalCost = request.getPrice() * request.getQuantity();
++        tradeHistoryRepository.save(history);
++    }
+ 
+-        // 4. 잔고 확인 및 매수 처리
++    // 매수
++    @Transactional
++    public void buyStock(String username, TradeRequest request) {
++
++        User user = getUserOrThrow(username);
++        Stock stock = getStockOrThrow(request.getTicker());
++
++        int quantity = request.getQuantity();
++        int price = request.getPrice();
++        validateQuantityAndPrice(quantity, price);
++
++        double totalCost = (double) price * quantity;
++
++        // 잔고 확인
+         if (user.getBalance() < totalCost) {
+             throw new IllegalArgumentException("잔고가 부족합니다. (현재 잔고: " + user.getBalance() + ")");
+         }
+ 
+-        // 5. DB 업데이트
++        // 잔고 차감
+         user.setBalance(user.getBalance() - totalCost);
+-        // TODO: 매매기록 (TradeHistory) 저장 로직 추가
++
++        // 보유 종목 갱신
++        Holding holding = holdingRepository.findByUserAndStock(user, stock)
++                .orElseGet(() -> Holding.builder()
++                        .user(user)
++                        .stock(stock)
++                        .quantity(0)
++                        .avgPrice(0.0)
++                        .build()
++                );
++
++        int oldQty = holding.getQuantity();
++        double oldAvg = holding.getAvgPrice();
++
++        int newQty = oldQty + quantity;
++        double newAvg = (oldQty == 0)
++                ? price
++                : ((oldAvg * oldQty) + totalCost) / newQty;
++
++        holding.setQuantity(newQty);
++        holding.setAvgPrice(newAvg);
++        holdingRepository.save(holding);
++
++        // 거래 내역 기록
++        recordTrade(user, stock, TradeSide.BUY, quantity, price, totalCost);
++    }
++
++    // 매도
++    @Transactional
++    public void sellStock(String username, TradeRequest request) {
++
++        User user = getUserOrThrow(username);
++        Stock stock = getStockOrThrow(request.getTicker());
++
++        int quantity = request.getQuantity();
++        int price = request.getPrice();
++        validateQuantityAndPrice(quantity, price);
++
++        // 보유 종목 조회
++        Holding holding = holdingRepository.findByUserAndStock(user, stock)
++                .orElseThrow(() -> new IllegalArgumentException("보유 중인 수량이 없습니다."));
++
++        if (holding.getQuantity() < quantity) {
++            throw new IllegalArgumentException("보유 수량보다 많이 매도할 수 없습니다.");
++        }
++
++        double totalProceeds = (double) price * quantity;
++
++        // 보유 수량 / 평단 처리
++        int remainQty = holding.getQuantity() - quantity;
+ 
+-        userRepository.save(user);
+-        // 실제 보유 주식 수량 관리 로직은 이 코드가 완료된 후 추가
+-    }
+-    // TODO: public void sellStock() 메서드 추가 필요 시
+-}
++        if (remainQty == 0) {
++            holdingRepository.delete(holding); // 전량 매도
++        } else {
++            holding.setQuantity(remainQty);
++            // 평단가는 그대로 유지
++            holdingRepository.save(holding);
++        }
++
++        // 잔고 증가
++        user.setBalance(user.getBalance() + totalProceeds);
++
++        // 거래 내역 기록
++        recordTrade(user, stock, TradeSide.SELL, quantity, price, totalProceeds);
++    }
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/user/UserLoginRequest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/user/UserLoginRequest.java b/ddit/src/main/java/kr/or/ddit/user/UserLoginRequest.java
+new file mode 100644
+--- /dev/null	(date 1764731110583)
++++ b/ddit/src/main/java/kr/or/ddit/user/UserLoginRequest.java	(date 1764731110583)
+@@ -0,0 +1,11 @@
++package kr.or.ddit.user;
++
++import lombok.Getter;
++import lombok.Setter;
++
++@Getter
++@Setter
++public class UserLoginRequest {
++    private String username;
++    private String password;
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/dto/StockPriceResponse.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/dto/StockPriceResponse.java b/ddit/src/main/java/kr/or/ddit/stock/dto/StockPriceResponse.java
+new file mode 100644
+--- /dev/null	(date 1764733709786)
++++ b/ddit/src/main/java/kr/or/ddit/stock/dto/StockPriceResponse.java	(date 1764733709786)
+@@ -0,0 +1,17 @@
++package kr.or.ddit.stock.dto;
++
++import lombok.*;
++
++@Getter
++@Setter
++@NoArgsConstructor
++@AllArgsConstructor
++@Builder
++public class StockPriceResponse {
++    private String ticker;
++    private String name;
++    private String market;
++
++    private Double lastClose;
++    private String lastTradeDate;
++}
+Index: ddit/src/main/java/kr/or/ddit/stock/TradeController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package kr.or.ddit.stock;\r\n\r\nimport lombok.RequiredArgsConstructor;\r\nimport org.springframework.http.HttpStatus;\r\nimport org.springframework.http.ResponseEntity;\r\nimport org.springframework.security.core.Authentication;\r\nimport org.springframework.web.bind.annotation.*;\r\nimport jakarta.validation.Valid;\r\n\r\n@RestController\r\n@RequestMapping(\"/api/trade\")\r\n@RequiredArgsConstructor\r\npublic class TradeController {\r\n    private final TradeService tradeService;\r\n\r\n    // POST /api/trade/buy: 주식 매수 요청\r\n    @PostMapping(\"/buy\")\r\n    public ResponseEntity<String> buy(@RequestBody @Valid TradeRequest request, Authentication authentication) {\r\n        // Spring Security를 통해 인증된 username을 가져오기\r\n        String username = authentication.getName();\r\n\r\n        try {\r\n            tradeService.buyStock(username, request);\r\n            return ResponseEntity.ok(request.getTicker() + \" 종목 \" + request.getQuantity() + \"주 매수 성공!\");\r\n\r\n        } catch (IllegalArgumentException e) {\r\n            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);\r\n        } catch (Exception e) {\r\n            return new ResponseEntity<>(\"서버 오류가 발생했습니다.\", HttpStatus.INTERNAL_SERVER_ERROR);\r\n        }\r\n    }\r\n\r\n    // TODO: POST /api/trade/sell: 주식 매도 요청 로직 추가\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/TradeController.java b/ddit/src/main/java/kr/or/ddit/stock/TradeController.java
+--- a/ddit/src/main/java/kr/or/ddit/stock/TradeController.java	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/java/kr/or/ddit/stock/TradeController.java	(date 1764709035965)
+@@ -1,11 +1,8 @@
+ package kr.or.ddit.stock;
+ 
+ import lombok.RequiredArgsConstructor;
+-import org.springframework.http.HttpStatus;
+ import org.springframework.http.ResponseEntity;
+-import org.springframework.security.core.Authentication;
+ import org.springframework.web.bind.annotation.*;
+-import jakarta.validation.Valid;
+ 
+ @RestController
+ @RequestMapping("/api/trade")
+@@ -15,20 +12,22 @@
+ 
+     // POST /api/trade/buy: 주식 매수 요청
+     @PostMapping("/buy")
+-    public ResponseEntity<String> buy(@RequestBody @Valid TradeRequest request, Authentication authentication) {
++    public ResponseEntity<Void> buy(
++            @RequestParam String username,
++            @RequestBody TradeRequest request
++    ) {
+         // Spring Security를 통해 인증된 username을 가져오기
+-        String username = authentication.getName();
+-
+-        try {
+-            tradeService.buyStock(username, request);
+-            return ResponseEntity.ok(request.getTicker() + " 종목 " + request.getQuantity() + "주 매수 성공!");
+-
+-        } catch (IllegalArgumentException e) {
+-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+-        } catch (Exception e) {
+-            return new ResponseEntity<>("서버 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
+-        }
++        tradeService.buyStock(username, request);
++        return ResponseEntity.ok().build();
++    }
++
++    // 매도
++    @PostMapping("/sell")
++    public ResponseEntity<Void> sell(
++            @RequestParam String username,
++            @RequestBody TradeRequest request
++    ) {
++        tradeService.sellStock(username, request);
++        return ResponseEntity.ok().build();
+     }
+-
+-    // TODO: POST /api/trade/sell: 주식 매도 요청 로직 추가
+ }
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/StockQueryController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/StockQueryController.java b/ddit/src/main/java/kr/or/ddit/stock/StockQueryController.java
+new file mode 100644
+--- /dev/null	(date 1764736619271)
++++ b/ddit/src/main/java/kr/or/ddit/stock/StockQueryController.java	(date 1764736619271)
+@@ -0,0 +1,68 @@
++package kr.or.ddit.stock;
++
++import kr.or.ddit.data.DailyPrice;
++import kr.or.ddit.data.DailyPriceRepository;
++import kr.or.ddit.stock.dto.StockPriceResponse;
++import lombok.RequiredArgsConstructor;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.*;
++
++import java.time.format.DateTimeFormatter;
++import java.util.List;
++import java.util.Optional;
++import java.util.stream.Collectors;
++
++@RestController
++@RequestMapping("/api/stocks")
++@RequiredArgsConstructor
++public class StockQueryController {
++    private final StockRepository stockRepository;
++    private final DailyPriceRepository dailyPriceRepository;
++
++    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_DATE;
++
++    // 1. 전체 종목 목혹 + 각 종목의 현재가
++    @GetMapping
++    public ResponseEntity<List<StockPriceResponse>> getAllStocks() {
++        List<Stock> stocks =  stockRepository.findAll();
++
++        List<StockPriceResponse> responses = stocks.stream()
++                .map(this::toResponse)
++                .collect(Collectors.toList());
++
++        return ResponseEntity.ok(responses);
++    }
++
++    // 2. 특정 종목 한 개 조회
++    @GetMapping("/{ticker}")
++    public ResponseEntity<StockPriceResponse> getStock(@PathVariable String ticker) {
++        Stock stock = stockRepository.findByTicker(ticker)
++                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 종목 코드입니다."));
++
++        StockPriceResponse response = toResponse(stock);
++        return ResponseEntity.ok(response);
++    }
++
++    // Stock + 가장 최근 DailyPrice -> DTO 변환
++    private StockPriceResponse toResponse(Stock stock) {
++        Optional<DailyPrice> lastestOpt = dailyPriceRepository
++                .findTopByStockOrderByTradeDateDesc(stock);
++
++        Double lastClose = null;
++        String lastTradeDate = null;
++
++        if (lastestOpt.isPresent()) {
++            DailyPrice dp = lastestOpt.get();
++            lastClose = dp.getClose();
++            lastTradeDate = dp.getTradeDate().format(DATE_FMT);
++        }
++
++        return StockPriceResponse.builder()
++                .ticker(stock.getTicker())
++                .name(stock.getName())
++                .market(stock.getMarket())
++                .lastClose(lastClose)
++                .lastTradeDate(lastTradeDate)
++                .build();
++    }
++}
+Index: ddit/src/main/resources/application.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>spring.application.name=demo\r\nspring.datasource.url=jdbc:mysql://localhost:3306/stack_db?serverTimezone=Asia/Seoul\r\nspring.datasource.username=root\r\nspring.datasource.password=ns47sh@n!58tc!!\r\nspring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver\r\nspring.jpa.hibernate.ddl-auto=update\r\nspring.jpa.show-sql=true\r\n# console SQL output\r\nspring.jpa.properties.hibernate.format_sql=true\r\n# SQL sorting
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>ISO-8859-1
+===================================================================
+diff --git a/ddit/src/main/resources/application.properties b/ddit/src/main/resources/application.properties
+--- a/ddit/src/main/resources/application.properties	(revision 3853c8f131c795bdbff20b5e91b3f1f07ba0433d)
++++ b/ddit/src/main/resources/application.properties	(date 1764720904747)
+@@ -7,4 +7,5 @@
+ spring.jpa.show-sql=true
+ # console SQL output
+ spring.jpa.properties.hibernate.format_sql=true
+-# SQL sorting
+\ No newline at end of file
++# SQL sorting
++spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/TradeHistory.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/TradeHistory.java b/ddit/src/main/java/kr/or/ddit/stock/TradeHistory.java
+new file mode 100644
+--- /dev/null	(date 1764688808628)
++++ b/ddit/src/main/java/kr/or/ddit/stock/TradeHistory.java	(date 1764688808628)
+@@ -0,0 +1,46 @@
++package kr.or.ddit.stock;
++
++import jakarta.persistence.*;
++import lombok.*;
++import kr.or.ddit.user.User;
++
++import java.time.LocalDateTime;
++
++@Entity
++@Table(name = "trade_history")
++@Getter
++@Setter
++@NoArgsConstructor
++@AllArgsConstructor
++@Builder
++public class TradeHistory {
++    @Id
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
++    private Long id;
++
++    // 거래자 확인
++    @ManyToOne(fetch = FetchType.LAZY)
++    @JoinColumn(name = "user_id", nullable = false)
++    private User user;
++
++    // 거래 종목 확인
++    @ManyToOne(fetch = FetchType.LAZY)
++    @JoinColumn(name = "ticker", nullable = false)
++    private Stock stock;
++
++    @Enumerated(EnumType.STRING)
++    @Column(nullable = false, length = 10)
++    private TradeSide side; // buy or sell
++
++    @Column(nullable = false)
++    private int quantity;
++
++    @Column(nullable = false)
++    private int price; // 체결가
++
++    @Column(nullable = false)
++    private double totalAmount; // quantity * price
++
++    @Column(nullable = false)
++    private LocalDateTime tradedAt;
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/TradeHistoryRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/TradeHistoryRepository.java b/ddit/src/main/java/kr/or/ddit/stock/TradeHistoryRepository.java
+new file mode 100644
+--- /dev/null	(date 1764688722880)
++++ b/ddit/src/main/java/kr/or/ddit/stock/TradeHistoryRepository.java	(date 1764688722880)
+@@ -0,0 +1,10 @@
++package kr.or.ddit.stock;
++
++import kr.or.ddit.user.User;
++import org.springframework.data.jpa.repository.JpaRepository;
++
++import java.util.List;
++
++public interface TradeHistoryRepository extends JpaRepository<TradeHistory,Long> {
++    List<TradeHistory> findByUserOrderByTradedAtDesc(User user);
++}
+\ No newline at end of file
+Index: ddit/src/main/java/kr/or/ddit/stock/Holding.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/Holding.java b/ddit/src/main/java/kr/or/ddit/stock/Holding.java
+new file mode 100644
+--- /dev/null	(date 1764679252341)
++++ b/ddit/src/main/java/kr/or/ddit/stock/Holding.java	(date 1764679252341)
+@@ -0,0 +1,39 @@
++package kr.or.ddit.stock;
++
++import jakarta.persistence.*;
++import lombok.*;
++import kr.or.ddit.user.User;
++
++@Entity
++@Table(
++        name = "holding",
++        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "ticker"})
++)
++@Getter
++@Setter
++@NoArgsConstructor
++@AllArgsConstructor
++@Builder
++public class Holding {
++    @Id
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
++    private Long id;
++
++    // 어떤 user의 보유 종목인지 확인
++    @ManyToOne(fetch = FetchType.LAZY)
++    @JoinColumn(name = "user_id", nullable = false)
++    private User user;
++
++    // 어떤 종목인지 확인
++    @ManyToOne(fetch = FetchType.LAZY)
++    @JoinColumn(name = "ticker", nullable = false)
++    private Stock stock;
++
++    //  보유 수량
++    @Column(nullable = false)
++    private int quantity;
++
++    // 평단가
++    @Column(nullable = false)
++    private double avgPrice;
++}
+Index: ddit/src/main/java/kr/or/ddit/stock/HoldingRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/java/kr/or/ddit/stock/HoldingRepository.java b/ddit/src/main/java/kr/or/ddit/stock/HoldingRepository.java
+new file mode 100644
+--- /dev/null	(date 1764688502631)
++++ b/ddit/src/main/java/kr/or/ddit/stock/HoldingRepository.java	(date 1764688502631)
+@@ -0,0 +1,12 @@
++package kr.or.ddit.stock;
++
++import kr.or.ddit.user.User;
++import org.springframework.data.jpa.repository.JpaRepository;
++
++import java.util.List;
++import java.util.Optional;
++
++public interface HoldingRepository extends JpaRepository<Holding, Long> {
++    Optional<Holding> findByUserAndStock(User user, Stock stock);
++    List<Holding> findByUser(User user);
++}
+\ No newline at end of file
+Index: ddit/src/main/resources/static/css/style.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ddit/src/main/resources/static/css/style.css b/ddit/src/main/resources/static/css/style.css
+new file mode 100644
+--- /dev/null	(date 1765909944264)
++++ b/ddit/src/main/resources/static/css/style.css	(date 1765909944264)
+@@ -0,0 +1,156 @@
++body {
++    margin: 20px;
++    font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", sans-serif;
++}
++
++.bg {
++    position: fixed;
++    inset: 0;
++    background: #eef3f8;
++}
++
++.center {
++    min-height: 100vh;
++    display: grid;
++    place-items: center;
++    padding: 24px;
++    position: relative;
++    z-index: 1;
++}
++
++.card {
++    width: 420px;
++    max-width: calc(100vw - 48px);
++    background: #fff;
++    border-radius: 10px;
++    padding: 28px 28px 22px;
++    box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
++}
++
++.card-title {
++    text-align: center;
++    margin: 0 0 18px;
++    font-size: 26px;
++    font-weight: 800;
++}
++
++.form .field {
++    display: grid;
++    gap: 6px;
++    margin-bottom: 12px;
++}
++
++.form label {
++    font-size: 13px;
++    color: #333;
++}
++
++.form input {
++    height: 40px;
++    padding: 0 12px;
++    border: 1px solid #d8d8d8;
++    border-radius: 6px;
++    outline: none;
++}
++
++.btn-row {
++    display: grid;
++    grid-template-columns: 1fr 1fr;
++    gap: 12px;
++    margin-top: 10px;
++}
++
++.btn-col {
++    display: grid;
++    gap: 10px;
++    margin-top: 10px;
++}
++
++.btn {
++    height: 42px;
++    border-radius: 6px;
++    border: 1px solid #cfcfcf;
++    background: #f4f4f4;
++    cursor: pointer;
++    font-weight: 700;
++}
++
++.btn.primary {
++    background: #1f73d8;
++    border-color: #1f73d8;
++    color: white;
++}
++
++.btn.ghost {
++    background: #f3f5f7;
++    color: #333;
++}
++
++.btn.wide {
++    width: 100%;
++}
++
++.hidden {
++    display: none !important;
++}
++
++/* 주식 화면 레이아웃 */
++#stockSection {
++    width: min(1100px, calc(100vw - 48px));
++}
++
++.header {
++    display: flex;
++    align-items: center;
++    justify-content: space-between;
++    margin-bottom: 14px;
++}
++
++.page-title {
++    margin: 0;
++    font-size: 22px;
++    font-weight: 800;
++}
++
++.panel {
++    background: #fff;
++    border-radius: 10px;
++    padding: 16px;
++    box-shadow: 0 10px 30px rgba(0,0,0,.06);
++    margin-bottom: 14px;
++}
++
++.subtitle {
++    margin: 0 0 10px;
++    font-size: 16px;
++    font-weight: 800;
++}
++
++.grid3 {
++    display: grid;
++    grid-template-columns: 1fr 1fr 1fr;
++    gap: 12px;
++}
++
++.grid2 {
++    display: grid;
++    grid-template-columns: 1fr 1fr;
++    gap: 12px;
++}
++
++.status {
++    margin-top: 10px;
++    font-size: 12px;
++    color: #555;
++}
++
++.result {
++    background: #f7f9fb;
++    border: 1px solid #e5e8ec;
++    border-radius: 8px;
++    padding: 10px;
++    margin-top: 8px;
++    max-height: 220px;
++    overflow: auto;
++    font-size: 12px;
++}
+\ No newline at end of file
